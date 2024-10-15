@@ -206,7 +206,6 @@ def eliminate_min_ind(card_probability, exposed_card, deck_dict):
 
 # Updates card_probability based on previous guesses
 def update_card_probability(player, card_probability, round):
-    total_viable_cards = len(card_probability)
     teammate_played_cards = player.exposed_cards[TEAMMATE[player.name]]
 
     for ind, guesses in enumerate(player.guesses):
@@ -392,8 +391,27 @@ def guessing(player, cards, round):
     num_of_guesses = 13 - round
 
     # Fill guesses with only probability after 6 rounds
-    if round > 7:
-        return sorted([card for card in card_probability.keys()], key = lambda x : card_probability[x], reverse=True)[:num_of_guesses]
+    if round == 13:
+        return []
+    
+    if round > 6:
+        sorted_cards = sorted([card for card in card_probability.keys()], key = lambda x : card_probability[x], reverse=True)
+        potential_guesses = sorted_cards[:num_of_guesses]
+
+        all_the_same = card_probability[sorted_cards[0]] == card_probability[sorted_cards[num_of_guesses]] if num_of_guesses < len(sorted_cards) else False
+
+        if all_the_same:
+            print("PURE PROBABILITY STRATEGY, I AM RANDOMIZING.")
+            num_of_same_cards = num_of_guesses
+            for card in sorted_cards[num_of_guesses:]:
+                if card_probability[card] == card_probability[sorted_cards[0]]:
+                    num_of_same_cards += 1
+                else:
+                    break
+
+            potential_guesses = random.choices(sorted_cards[:num_of_same_cards], k = num_of_guesses)
+
+        return potential_guesses
     
     # for cards in player.exposed_cards.values():
     #     for i in range(len(cards) - 1):
@@ -443,8 +461,8 @@ def guessing(player, cards, round):
     #     val_check_arr.append((card.value, card.suit))
     # print("Potential Guesses:", val_check_arr)
     
-    potential_guesses = [card for card in deck_dict[teammate_max] if card in card_probability] # All 13 cards of the teammate_suit
-    potential_guesses.sort(key=lambda x : deck_dict[teammate_max].index(x))
+    potential_guesses = [card for card in deck_dict[teammate_max] if card in card_probability] # All cards in the Fake Suit
+    potential_guesses.sort(key=lambda x : card_probability[x], reverse=True)
 
     # This is a testing print
     # val_check_arr = []
@@ -454,13 +472,49 @@ def guessing(player, cards, round):
     
     if len(potential_guesses) < num_of_guesses:
         num_of_missing_cards = num_of_guesses - len(potential_guesses)
+        # print("I AM MISSING ", num_of_missing_cards)
         extra_guesses = [card for card in card_probability if card not in potential_guesses]
-        print("MY PRECIOUS CARDS: ", sorted(extra_guesses, key=lambda x : card_probability[x], reverse=True)[:num_of_missing_cards])
-        potential_guesses.extend(sorted(extra_guesses, key=lambda x : card_probability[x], reverse=True)[:num_of_missing_cards])
+        extra_guesses.sort(key=lambda x : card_probability[x], reverse=True)
+        # print("MY CANDIDATES: ", extra_guesses)
+        potential_extra_choices = extra_guesses[:num_of_missing_cards]
+
+        all_the_same = card_probability[extra_guesses[0]] == card_probability[extra_guesses[num_of_missing_cards]] if num_of_missing_cards < len(extra_guesses) else False
+
+        if all_the_same:
+            print("TOO MANY GOOD OPTIONS")
+            num_of_same_cards = num_of_missing_cards
+
+            for card in extra_guesses[num_of_missing_cards - 1:]:
+                if card_probability[card] == card_probability[extra_guesses[0]]:
+                    num_of_same_cards += 1
+                else:
+                    break
+                    
+            if num_of_same_cards > num_of_missing_cards:
+                print("Same Prob Cards: ", num_of_same_cards)
+                print("BEFORE RANDOMIZATION: ", potential_extra_choices)
+                potential_extra_choices = random.choices(extra_guesses[:num_of_same_cards], k=num_of_missing_cards)
+                print("AFTER RANDOMIZATION: ", potential_extra_choices)
+
+            
+        # print("MY PRECIOUS CARDS: ", potential_extra_choices)
+        potential_guesses.extend(potential_extra_choices)
 
     if len(potential_guesses) > num_of_guesses:
-        potential_guesses = potential_guesses[round:] if len(potential_guesses[round:]) == num_of_guesses else potential_guesses[:num_of_guesses]
-        print("MY PRECIOUS SUITS: ", potential_guesses)
+        print("TOO MANY MAX SUITS")
+        potential_guesses = potential_guesses[:num_of_guesses]
+        
+        all_the_same = potential_guesses[0] == potential_guesses[num_of_guesses] if num_of_guesses < len(potential_guesses) else False
+
+        if all_the_same:
+            num_of_same_cards = num_of_guesses
+            for card in potential_guesses[num_of_guesses:]:
+                if card_probability[card] == card_probability[potential_guesses[0]]:
+                    num_of_same_cards += 1
+                else:
+                    break
+            potential_guesses = random.choices(potential_guesses[:num_of_same_cards], k = num_of_guesses)
+        # print("MY PRECIOUS SUITS: ", potential_guesses)
 
     return potential_guesses
 
